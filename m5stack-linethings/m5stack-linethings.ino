@@ -6,10 +6,10 @@
 #include <SparkFunMPU9250-DMP.h>
 
 // Device Name: Maximum 30 bytes
-#define DEVICE_NAME "LINE Things Pedometer"
+#define DEVICE_NAME "Compass Panda Pedometer"
 
 // User service UUID: Change this to your generated service UUID
-#define USER_SERVICE_UUID "62FBD229-6EDD-4D1A-B554-5C4E1BB29169"
+#define USER_SERVICE_UUID "b793a71b-00ec-47f2-8088-913a42376adf"
 // User service characteristics
 #define WRITE_CHARACTERISTIC_UUID "E9062E71-9E62-4BC6-B0D3-35CDCD9B027B"
 #define NOTIFY_CHARACTERISTIC_UUID "62FBD229-6EDD-4D1A-B554-5C4E1BB29169"
@@ -31,7 +31,7 @@ bool oldDeviceConnected = false;
 
 class serverCallbacks: public BLEServerCallbacks {
   void onConnect(BLEServer* pServer) {
-   deviceConnected = true;
+    deviceConnected = true;
   };
 
   void onDisconnect(BLEServer* pServer) {
@@ -41,13 +41,12 @@ class serverCallbacks: public BLEServerCallbacks {
 
 MPU9250_DMP imu;
 
-uint8_t stepCount = 0;
-uint8_t stepTime = 0;
-uint8_t lastStepCount = 0;
+unsigned long stepCount = 0;
+char steps[10];
 
 void setup() {
-  Serial.begin(115200);
   M5.begin();
+  M5.Lcd.drawJpgFile(SD, "/panda-face.jpg");
 
   BLEDevice::init("");
   BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_NO_MITM);
@@ -64,32 +63,36 @@ void setup() {
   imu.begin();
   imu.dmpBegin(DMP_FEATURE_PEDOMETER);
   imu.dmpSetPedometerSteps(stepCount);
-  imu.dmpSetPedometerTime(stepTime);
 
-  M5.Lcd.setTextSize(3);
-  M5.lcd.print("Walked 0 steps");
 }
 
 void loop() {
   stepCount = imu.dmpGetPedometerSteps();
-  stepTime = imu.dmpGetPedometerTime();
-  if (stepCount != lastStepCount)
-  {
-    lastStepCount = stepCount;
-    M5.lcd.clear();
-    M5.Lcd.setCursor(0,0);
-    M5.lcd.print("Walked " + String(stepCount) + " steps");
-    M5.lcd.print(" (" + String((float)stepTime / 1000.0) + " s)");
-  }
+  sprintf(steps, "%d", stepCount);
 
   if (M5.BtnA.wasPressed()) {
-    notifyCharacteristic->setValue(&stepCount, 1);
+    notifyCharacteristic->setValue(steps);
     notifyCharacteristic->notify();
+    M5.Lcd.drawJpgFile(SD, "/notify.jpg");
+    delay(2000);
+    M5.Lcd.drawJpgFile(SD, "/panda-face.jpg");
   }
 
   if (M5.BtnB.wasPressed()) {
     stepCount = 0;
-    M5.Lcd.clear(BLACK);
+    imu.dmpSetPedometerSteps(stepCount);
+    M5.Lcd.drawJpgFile(SD, "/reset.jpg");
+    delay(2000);
+    M5.Lcd.drawJpgFile(SD, "/panda-face.jpg");
+  }
+
+  if (M5.BtnC.wasPressed()) {
+    M5.Lcd.drawJpgFile(SD, "/steps.jpg");
+    M5.lcd.print(steps);
+    M5.Lcd.setTextSize(5);
+    M5.Lcd.setCursor(100, 120);
+    delay(2000);
+    M5.Lcd.drawJpgFile(SD, "/panda-face.jpg");
   }
 
   M5.update();
@@ -99,20 +102,10 @@ void loop() {
     delay(500); // Wait for BLE Stack to be ready
     thingsServer->startAdvertising(); // Restart advertising
     oldDeviceConnected = deviceConnected;
-    M5.Lcd.clear(BLACK);
-    M5.Lcd.setTextColor(YELLOW);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setCursor(65, 10);
-    M5.Lcd.println("Ready to Connect");
   }
   // Connection
   if (deviceConnected && !oldDeviceConnected) {
     oldDeviceConnected = deviceConnected;
-    M5.Lcd.clear(BLACK);
-    M5.Lcd.setTextColor(GREEN);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setCursor(100, 10);
-    M5.Lcd.println("Connected");
   }
 }
 

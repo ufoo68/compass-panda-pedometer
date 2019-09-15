@@ -1,1 +1,1 @@
-LINE Thingsのハンズオンのためのコード。歩数計Botを作ります。
+[コンパスパンダ](https://github.com/ufoo68/compassPanda)と連動する歩数計デバイス
